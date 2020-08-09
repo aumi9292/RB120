@@ -174,3 +174,107 @@ hale.parks << 'City Park' << 'Lindsley Park' << 'Hale Park' << 'Mayfair Park' <<
 p hale.to_s
 denver.neighborhoods = hale
 p denver.neighborhoods
+
+# 8.6.20 HW
+
+class Friend
+  attr_accessor :name
+
+  def initialize(name)
+    @name = endcase(name)
+  end
+
+  def endcase(str)
+    str[0...-1].downcase + str[-1].upcase
+  end
+
+  def to_s
+    "Hi, my name is #{name.capitalize} and I'm a good friend"
+  end
+end
+
+class Owner
+  attr_reader :friend, :name
+
+  def initialize(name, friend)
+    @name = altercase(name)
+    @friend = friend
+  end
+
+  def altercase(str)
+    str.chars.map.with_index { |char, i| i.even? ? char.upcase : char.downcase }.join
+  end
+
+  def to_s
+    "Hi, I'm #{name.capitalize} and i have a friend"
+  end
+end
+
+class Pet
+  attr_reader :name
+  attr_accessor :owner
+
+  def initialize(name)
+    @name = name.upcase
+    @owner = Owner.new('BoB', Friend.new('Joe'))
+  end
+
+  def to_s
+    "My name is #{@name.downcase}"
+  end
+end
+
+name = 'fluffy'
+fluffy = Pet.new(name)
+
+puts fluffy.name # fluffy
+puts fluffy      # My name is FLUFFY
+puts fluffy.name # fluffy
+puts name        # fluffy
+puts
+puts fluffy # My name is fluffy
+puts fluffy.owner # Hi, I'm Bob and i have a friend
+puts fluffy.owner.friend # Hi, my name is Joe and I'm a good friend
+puts fluffy.name # FLUFFY
+puts fluffy.owner.name # BoB
+puts fluffy.owner.friend.name # joE
+
+class Player
+  def go_to_stadium
+    puts "I'm going to the field"
+  end
+end
+
+class Fan
+  def go_to_stadium
+    puts "I'm going to the bleachers/stands"
+  end
+end
+
+class Sub
+  def go_to_stadium
+    go_to_bench
+  end
+
+  def go_to_bench
+    puts "I'm going to the bench"
+  end
+end
+
+# Poly - different types of objects responding to the same message in different ways.
+# {type} Duck Typing - same message, unique implementation( no relationship between objects)
+# {type} Inheritance - same message, similar implementation(relationship)
+[Player.new, Fan.new, Sub.new].each(&:go_to_stadium)
+
+class VerseOne
+  def read(_n = nil)
+    "one bottle .."
+  end
+end
+class VerseGreaterThan3
+  def read(n=99)
+    "#{n} bottles.."
+  end
+end
+
+puts [VerseOne.new, VerseGreaterThan3.new].map(&:read)
