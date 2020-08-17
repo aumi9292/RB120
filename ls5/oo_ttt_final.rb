@@ -1,3 +1,33 @@
+class Decision
+  attr_accessor :validated
+
+  def initialize(question, valid = { y: true, n: false })
+    @question = question
+    puts question
+    @valid = valid
+    @response = gets.chomp.downcase.to_sym
+    @error_message = "Sorry, invalid response. Try again."
+    @clear_screen = system('clear')
+    @validated = valid.is_a?(Hash) ? validate_response : validate_range
+  end
+
+  private
+
+  attr_accessor :response, :valid, :error_message
+
+  def validate_response
+    return valid[response] if valid.key?(response)
+    puts error_message
+    Decision.new(@question, @valid).validated
+  end
+
+  def validate_range
+    return response.to_s.capitalize if valid.cover?(response.to_s)
+    puts error_message
+    Decision.new(@question, @valid).validated
+  end
+end
+
 class Player
   attr_accessor :name, :score
 
@@ -25,27 +55,12 @@ class Human < Player
   end
 
   def self.select_first_mark
-    loop do
-      puts "Please choose X or O (X goes first, O goes second): "
-      mark = gets.chomp.upcase.strip
-      if MARKS.include?(mark)
-        @@mark = mark
-        break
-      end
-      puts "Sorry, please enter X or O only."
-    end
+    q = "Please choose X or O (X goes first, O goes second): "
+    @@mark = Decision.new(q, { x: MARKS[0], o: MARKS[1] }).validated
   end
 
   def set_name
-    loop do
-      puts "Please write your name: "
-      name = gets.chomp.strip.downcase
-      if name.match?(/[a-z]/)
-        self.name = name.capitalize
-        break
-      end
-      puts "Sorry, you must enter some alphabetical character."
-    end
+    self.name = Decision.new("Please write your name: ", ('a'..'z')).validated
   end
 end
 
@@ -80,16 +95,6 @@ class Board
 
   def reset
     self.grid = grid.map { Square.new }
-  end
-
-  def winning_mark
-    Player::MARKS.select do |mk|
-      Board::COMBOS.any? { |set| set.all? { |i| square_status(i) == mk } }
-    end
-  end
-
-  def winner?
-    !winning_mark.empty?
   end
 
   def to_s
@@ -127,6 +132,10 @@ class Board
     square_status(index) == Square::INITIAL_MARK
   end
 
+  def square_status(index)
+    grid[index - 1].status
+  end
+
   private
 
   def row1
@@ -147,10 +156,6 @@ class Board
     "     |     |     \n" \
     "  #{grid[6]}  |  #{grid[7]}  |  #{grid[8]}  \n" \
     "     |     |     \n"
-  end
-
-  def square_status(index)
-    grid[index - 1].status
   end
 end
 
@@ -185,14 +190,19 @@ module Movable
   def human_move
     loop do
       puts "Please choose a number: #{board.empty_square_numbers_string}"
-      choice = gets.chomp.to_i - 1
-      if board.empty_squares[choice]
-        board.grid[choice].status = Human.mark
-        return
-      else
+      choice = gets.chomp
+      if invalid_input?(choice)
         puts "Sorry, that is not a valid square"
+      else
+        board.grid[choice.to_i - 1].status = Human.mark
+        break
       end
     end
+  end
+
+  def invalid_input?(choice)
+    num = choice.to_i - 1
+    num < 0 || !board.empty_squares[num] || choice.length > 1
   end
 
   def evaluate_opportunities
@@ -250,9 +260,8 @@ module Displayable
 
   def display_outcome_and_board
     display_board
-    puts board.winner? ? "\n#{winner_name} wins!" : "Tie game!"
+    puts winner? ? "\n#{winner_name} wins!" : "Tie game!"
     display_score
-    sleep(1.5)
   end
 
   def display_tourn_goodbye_message
@@ -278,41 +287,20 @@ module Displayable
     puts "\n**** Total Score ****"
     puts "#{player1.name}: #{player1.score}"
     puts "#{player2.name}: #{player2.score}"
+    sleep(1.5)
   end
 
   def tourn_message
-    "\n#{'*' * 80}\n" \
-    "#{grand_winner} is the grand winner! Thanks for playing. Goodbye." \
-    "\n#{'*' * 80}"
+    m = "#{grand_winner} is the grand winner! Thanks for playing. Goodbye."
+
+    "\n#{'*' * m.length}\n" \
+     "#{m}" \
+    "\n#{'*' * m.length}"
   end
 
   def top_info
     "#{player1.name} is: #{player1.class.mark}\n" \
       "#{player2.name} is: #{player2.class.mark}"
-  end
-end
-
-class Decision
-  attr_accessor :validated
-
-  def initialize(question)
-    @question = question
-    puts question
-    @valid = { 'y' => true, 'n' => false }
-    @response = gets.chomp
-    @error_message = "Sorry, please only type 'y' or 'n' to choose"
-    @validated = validate_response
-    @clear_screen = system('clear')
-  end
-
-  private
-
-  attr_accessor :response, :valid, :error_message
-
-  def validate_response
-    return valid[response] if valid.key?(response)
-    puts error_message
-    Decision.new(@question).validated
   end
 end
 
@@ -340,8 +328,7 @@ class TTTGame
   attr_reader :players, :board
 
   def set_name_and_marks
-    human = players.select { |ob| ob.is_a?(Human) }.first
-    human.set_name
+    players.select { |ob| ob.is_a?(Human) }.first.set_name
     set_player_marks
     self.player2, self.player1 = players.sort_by { |ob| ob.class.mark }
   end
@@ -351,8 +338,18 @@ class TTTGame
     Computer.select_second_mark
   end
 
+  def winning_mark
+    Player::MARKS.select do |mk|
+      Board::COMBOS.any? { |set| set.all? { |i| board.square_status(i) == mk } }
+    end
+  end
+
+  def winner?
+    !winning_mark.empty?
+  end
+
   def winner_name
-    mark = board.winning_mark.first
+    mark = winning_mark.first
     players.select { |player| player.class.mark == mark }.first.name
   end
 
@@ -372,11 +369,11 @@ class TTTGame
   def turns
     loop do
       move_and_reveal(player1)
-      break if board.full? || board.winner?
+      break if board.full? || winner?
       move_and_reveal(player2)
-      break if board.full? || board.winner?
+      break if board.full? || winner?
     end
-    update_winner(winner_name) if board.winner?
+    update_winner(winner_name) if winner?
   end
 
   def valid_tournament_choice
