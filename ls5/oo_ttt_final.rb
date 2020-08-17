@@ -1,5 +1,3 @@
-require 'pry'
-
 class Decision
   attr_accessor :validated
 
