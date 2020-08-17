@@ -293,12 +293,75 @@ person1 = Person.new
 person1.name = 'John Doe'
 puts person1.name
 
-class Decision
-  attr_accessor :input
+# class Decision
+#   attr_accessor :input
 
-  def initialize
-    @input = gets.chomp
+#   def initialize
+#     @input = gets.chomp
+#   end
+# end
+
+# he = Decision.new
+
+class Student
+  attr_reader :grade
+
+  def initialize(name, grade=nil)
+    @name = name
+    @grade = grade
   end
 end
 
-he = Decision.new
+ade = Student.new('Adewale')
+p ade
+
+class Character
+  attr_accessor :name
+
+  def initialize(name)
+    @name = name
+  end
+
+  def speak
+    "#{name} is speaking."
+  end
+end
+
+class Knight < Character
+  def name
+    "Sir " + super
+  end
+end
+
+sir_gallant = Knight.new("Gallant")
+p sir_gallant.name # => "Sir Gallant"
+p sir_gallant.speak
+
+class FarmAnimal
+  def speak
+    "#{self.class} says "
+  end
+end
+
+class Sheep < FarmAnimal
+  def speak
+    super + "baa!"
+  end
+end
+
+class Lamb < Sheep
+  def speak
+    super + "baaaaaaa!"
+  end
+end
+
+class Cow < FarmAnimal
+  def speak
+    super + "mooooooo!"
+  end
+end
+
+p Sheep.new.speak # => "Sheep says baa!"
+p Lamb.new.speak # => "Lamb says baa!baaaaaaa!"
+p Cow.new.speak # => "Cow says mooooooo!"
+p Cow.new == Cow.new 
