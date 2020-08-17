@@ -1,3 +1,5 @@
+require 'pry'
+
 class Decision
   attr_accessor :validated
 
@@ -8,7 +10,7 @@ class Decision
     @response = gets.chomp.downcase.to_sym
     @error_message = "Sorry, invalid response. Try again."
     @clear_screen = system('clear')
-    @validated = valid.is_a?(Hash) ? validate_response : validate_range
+    @validated = valid.instance_of?(Hash) ? validate_response : validate_range
   end
 
   private
@@ -101,8 +103,16 @@ class Board
     row1 + row2 + row3
   end
 
+  def [](index)
+    grid[index - 1]
+  end
+
+  def []=(index, value)
+    grid[index - 1].status = value
+  end
+
   def empty_squares
-    grid.map { |sq| sq.status == Square::INITIAL_MARK }
+    grid.map(&:unmarked?)
   end
 
   def empty_squares_list
@@ -117,23 +127,7 @@ class Board
   end
 
   def full?
-    grid.none? { |square| square.status == Square::INITIAL_MARK }
-  end
-
-  def h_marked?(index)
-    square_status(index) == Human.mark
-  end
-
-  def c_marked?(index)
-    square_status(index) == Computer.mark
-  end
-
-  def i_marked?(index)
-    square_status(index) == Square::INITIAL_MARK
-  end
-
-  def square_status(index)
-    grid[index - 1].status
+    grid.none?(&:unmarked?)
   end
 
   private
@@ -168,6 +162,22 @@ class Square
     @status = INITIAL_MARK
   end
 
+  def h_marked?
+    status == Human.mark
+  end
+
+  def c_marked?
+    status == Computer.mark
+  end
+
+  def unmarked?
+    status == INITIAL_MARK
+  end
+
+  def marked?
+    status != INITIAL_MARK
+  end
+
   private
 
   def to_s
@@ -177,7 +187,7 @@ end
 
 module Movable
   def move(party)
-    party.is_a?(Human) ? human_move : computer_move
+    party.instance_of?(Human) ? human_move : computer_move
   end
 
   private
@@ -194,24 +204,24 @@ module Movable
       if invalid_input?(choice)
         puts "Sorry, that is not a valid square"
       else
-        board.grid[choice.to_i - 1].status = Human.mark
+        board[choice.to_i] = Human.mark
         break
       end
     end
   end
 
   def invalid_input?(choice)
-    num = choice.to_i - 1
-    num < 0 || !board.empty_squares[num] || choice.length > 1
+    num = choice.to_i
+    num < 1 || board[num].marked? || choice.length > 1
   end
 
   def evaluate_opportunities
-    o = Board::COMBOS.select { |set| set.count { |i| board.c_marked?(i) } == 2 }
+    o = Board::COMBOS.select { |set| set.count { |i| board[i].c_marked? } == 2 }
     eliminate_duplicates(o)
   end
 
   def evaluate_threats
-    t = Board::COMBOS.select { |set| set.count { |i| board.h_marked?(i) } == 2 }
+    t = Board::COMBOS.select { |set| set.count { |i| board[i].h_marked? } == 2 }
     eliminate_duplicates(t)
   end
 
@@ -225,14 +235,13 @@ module Movable
 
   def select_open_targets(opps_and_threats)
     opps_and_threats.each do |positions|
-      positions.select! { |index| board.i_marked?(index) }
+      positions.select! { |i| board[i].unmarked? }
     end
     opps_and_threats
   end
 
   def choose(target)
-    position = target - 1
-    board.grid[position].status = Computer.mark
+    board[target] = Computer.mark
   end
 
   def handle
@@ -249,7 +258,7 @@ module Movable
   end
 
   def easy_choice
-    choose board.i_marked?(5) ? (5) : (random_choice)
+    choose board[5].unmarked? ? (5) : (random_choice)
   end
 end
 
@@ -328,7 +337,7 @@ class TTTGame
   attr_reader :players, :board
 
   def set_name_and_marks
-    players.select { |ob| ob.is_a?(Human) }.first.set_name
+    players.select { |ob| ob.instance_of?(Human) }.first.set_name
     set_player_marks
     self.player2, self.player1 = players.sort_by { |ob| ob.class.mark }
   end
@@ -340,7 +349,7 @@ class TTTGame
 
   def winning_mark
     Player::MARKS.select do |mk|
-      Board::COMBOS.any? { |set| set.all? { |i| board.square_status(i) == mk } }
+      Board::COMBOS.any? { |set| set.all? { |i| board[i].status == mk } }
     end
   end
 
